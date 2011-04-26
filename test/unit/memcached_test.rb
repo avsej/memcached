@@ -249,13 +249,13 @@ class MemcachedTest < Test::Unit::TestCase
     assert_equal nil, result
   end
 
-# def test_get_from_last
-#   cache = Memcached.new(@servers, :distribution => :random)
-#   10.times { |n| cache.set key, n }
-#   10.times do
-#     assert_equal cache.get(key), cache.get_from_last(key)
-#   end
-# end
+  def test_get_from_last
+    cache = Memcached.new(@servers, :distribution => :random)
+    10.times { |n| cache.set key, n }
+    10.times do
+      assert_equal cache.get(key), cache.get_from_last(key)
+    end
+  end
 
   def test_get_missing
     @cache.delete key rescue nil

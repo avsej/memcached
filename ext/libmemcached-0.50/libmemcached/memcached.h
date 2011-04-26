@@ -163,6 +163,7 @@ struct memcached_st {
     bool is_allocated:1;
   } options;
 
+  unsigned int last_server_key;
 };
 
 #ifdef __cplusplus

@@ -1,5 +1,5 @@
 /*  vim:expandtab:shiftwidth=2:tabstop=2:smarttab:
- * 
+ *
  *  Libmemcached library
  *
  *  Copyright (C) 2011 Data Differential, http://datadifferential.com/
@@ -49,6 +49,13 @@ char *memcached_get(memcached_st *ptr,
                     size_t *value_length,
                     uint32_t *flags,
                     memcached_return_t *error);
+
+LIBMEMCACHED_API
+char *memcached_get_from_last(memcached_st *ptr,
+                              const char *key, size_t key_length,
+                              size_t *value_length,
+                              uint32_t *flags,
+                              memcached_return_t *error);
 
 LIBMEMCACHED_API
 memcached_return_t memcached_mget(memcached_st *ptr,

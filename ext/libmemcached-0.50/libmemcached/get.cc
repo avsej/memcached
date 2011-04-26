@@ -1,5 +1,5 @@
 /*  vim:expandtab:shiftwidth=2:tabstop=2:smarttab:
- * 
+ *
  *  Libmemcached library
  *
  *  Copyright (C) 2011 Data Differential, http://datadifferential.com/
@@ -69,7 +69,7 @@ char *memcached_get_by_key(memcached_st *ptr,
 {
   unlikely (ptr->flags.use_udp)
   {
-    if (value_length) 
+    if (value_length)
       *value_length= 0;
 
     *error= memcached_set_error(*ptr, MEMCACHED_NOT_SUPPORTED, MEMCACHED_AT);
@@ -93,7 +93,7 @@ char *memcached_get_by_key(memcached_st *ptr,
       *error= memcached_last_error(ptr);
     }
 
-    if (value_length) 
+    if (value_length)
       *value_length= 0;
 
     return NULL;
@@ -331,6 +331,8 @@ static memcached_return_t memcached_mget_by_key_real(memcached_st *ptr,
         continue;
       }
     }
+
+    ptr->last_server_key = server_key;
   }
 
   if (hosts_connected == 0)
@@ -695,4 +697,73 @@ static memcached_return_t binary_mget_by_key(memcached_st *ptr,
   libmemcached_free(ptr, dead_servers);
 
   return MEMCACHED_SUCCESS;
+}
+
+char *memcached_get_from_last(memcached_st *ptr, const char *key,
+                              size_t key_length,
+                              size_t *value_length,
+                              uint32_t *flags,
+                              memcached_return *error)
+{
+  char *value = NULL;
+
+  *error = MEMCACHED_NOTFOUND;
+  if (memcached_server_response_count(&ptr->servers[ptr->last_server_key]) == 0) {
+    *error = memcached_connect(&ptr->servers[ptr->last_server_key]);
+
+    if (*error != MEMCACHED_SUCCESS) {
+      return value;
+    }
+
+    if ((memcached_io_write(&ptr->servers[ptr->last_server_key], "get ", 4, 0)) == -1) {
+      *error = MEMCACHED_SOME_ERRORS;
+      return value;
+    }
+    WATCHPOINT_ASSERT(ptr->servers[ptr->last_server_key].cursor_active == 0);
+    memcached_server_response_increment(&ptr->servers[ptr->last_server_key]);
+    WATCHPOINT_ASSERT(ptr->servers[ptr->last_server_key].cursor_active == 1);
+  }
+
+  /* Only called when we have a prefix key */
+  if (ptr->prefix_key && !memcached_array_is_null(ptr->prefix_key)) {
+    if ((memcached_io_write(&ptr->servers[ptr->last_server_key],
+                            memcached_array_string(ptr->prefix_key),
+                            memcached_array_size(ptr->prefix_key), false)) == -1) {
+      memcached_server_response_reset(&ptr->servers[ptr->last_server_key]);
+      *error = MEMCACHED_SOME_ERRORS;
+      return value;
+    }
+  }
+
+
+  if ((memcached_io_write(&ptr->servers[ptr->last_server_key], key, key_length, false)) == -1) {
+    memcached_server_response_reset(&ptr->servers[ptr->last_server_key]);
+    *error = MEMCACHED_SOME_ERRORS;
+    return value;
+  }
+
+  if ((memcached_io_write(&ptr->servers[ptr->last_server_key], "\r\n", 2, true)) == -1) {
+    memcached_server_response_reset(&ptr->servers[ptr->last_server_key]);
+    *error = MEMCACHED_SOME_ERRORS;
+    return value;
+  }
+
+  value = memcached_fetch(ptr, NULL, NULL, value_length, flags, error);
+
+  /* This is for historical reasons */
+  if (*error == MEMCACHED_END)
+    *error = MEMCACHED_NOTFOUND;
+
+  if (value != NULL) {
+    size_t dummy_length;
+    uint32_t dummy_flags;
+    memcached_return dummy_error;
+
+    (void)memcached_fetch(ptr, NULL, NULL,
+                          &dummy_length, &dummy_flags,
+                          &dummy_error);
+    WATCHPOINT_ASSERT(dummy_length == 0);
+  }
+
+  return value;
 }
