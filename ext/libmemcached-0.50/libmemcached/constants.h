@@ -1,5 +1,5 @@
 /*  vim:expandtab:shiftwidth=2:tabstop=2:smarttab:
- * 
+ *
  *  Libmemcached library
  *
  *  Copyright (C) 2011 Data Differential, http://datadifferential.com/
@@ -146,6 +146,7 @@ enum memcached_hash_t {
   MEMCACHED_HASH_MURMUR,
   MEMCACHED_HASH_JENKINS,
   MEMCACHED_HASH_CUSTOM,
+  MEMCACHED_HASH_NONE,
   MEMCACHED_HASH_MAX
 };
 

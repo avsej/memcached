@@ -1,5 +1,5 @@
 /*  vim:expandtab:shiftwidth=2:tabstop=2:smarttab:
- * 
+ *
  *  HashKit
  *
  *  Copyright (C) 2011 Data Differential, http://datadifferential.com/
@@ -62,6 +62,7 @@ typedef enum {
   HASHKIT_HASH_MURMUR,
   HASHKIT_HASH_JENKINS,
   HASHKIT_HASH_CUSTOM,
+  HASHKIT_HASH_NONE,
   HASHKIT_HASH_MAX
 } hashkit_hash_algorithm_t;
 
