@@ -42,6 +42,9 @@
 extern "C" {
 #endif
 
+#define GET_LEN_ARG_UNSPECIFIED -1U
+#define GET_LEN_BUFSZ 32
+
 /* Public defines */
 LIBMEMCACHED_API
 char *memcached_get(memcached_st *ptr,
@@ -62,6 +65,21 @@ memcached_return_t memcached_mget(memcached_st *ptr,
                                   const char * const *keys,
                                   const size_t *key_length,
                                   size_t number_of_keys);
+
+LIBMEMCACHED_API
+char *memcached_get_len(memcached_st *ptr,
+                        const char *key, size_t key_length,
+                        size_t *value_length,
+                        uint32_t *flags,
+                        uint32_t user_spec_len,
+                        memcached_return *error);
+
+LIBMEMCACHED_API
+memcached_return_t memcached_mget_len(memcached_st *ptr,
+                                      const char * const *keys,
+                                      const size_t *key_length,
+                                      size_t number_of_keys,
+                                      uint32_t user_spec_len);
 
 LIBMEMCACHED_API
 char *memcached_get_by_key(memcached_st *ptr,

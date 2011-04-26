@@ -57,15 +57,17 @@ static memcached_return_t memcached_mget_by_key_real(memcached_st *ptr,
                                                      const char * const *keys,
                                                      const size_t *key_length,
                                                      size_t number_of_keys,
-                                                     bool mget_mode);
+                                                     bool mget_mode,
+                                                     uint32_t user_spec_len);
 
-char *memcached_get_by_key(memcached_st *ptr,
-                           const char *group_key,
-                           size_t group_key_length,
-                           const char *key, size_t key_length,
-                           size_t *value_length,
-                           uint32_t *flags,
-                           memcached_return_t *error)
+static char *memcached_get_len_by_key(memcached_st *ptr,
+                               const char *group_key,
+                               size_t group_key_length,
+                               const char *key, size_t key_length,
+                               size_t *value_length,
+                               uint32_t *flags,
+                               uint32_t user_spec_len,
+                               memcached_return_t *error)
 {
   unlikely (ptr->flags.use_udp)
   {
@@ -82,7 +84,7 @@ char *memcached_get_by_key(memcached_st *ptr,
   /* Request the key */
   *error= memcached_mget_by_key_real(ptr, group_key, group_key_length,
                                      (const char * const *)&key,
-                                     &key_length, 1, false);
+                                     &key_length, 1, false, user_spec_len);
   assert(ptr->query_id == query_id +1);
 
 
@@ -172,6 +174,18 @@ char *memcached_get_by_key(memcached_st *ptr,
   return value;
 }
 
+char *memcached_get_by_key(memcached_st *ptr,
+                           const char *group_key,
+                           size_t group_key_length,
+                           const char *key, size_t key_length,
+                           size_t *value_length,
+                           uint32_t *flags,
+                           memcached_return_t *error)
+{
+  return memcached_get_len_by_key(ptr, NULL, 0, key, key_length, value_length,
+                                  flags, GET_LEN_ARG_UNSPECIFIED, error);
+}
+
 memcached_return_t memcached_mget(memcached_st *ptr,
                                   const char * const *keys,
                                   const size_t *key_length,
@@ -194,12 +208,15 @@ static memcached_return_t memcached_mget_by_key_real(memcached_st *ptr,
                                                      const char * const *keys,
                                                      const size_t *key_length,
                                                      size_t number_of_keys,
-                                                     bool mget_mode)
+                                                     bool mget_mode,
+                                                     uint32_t user_spec_len)
 {
   bool failures_occured_in_sending= false;
-  const char *get_command= "get ";
-  uint8_t get_command_length= 4;
+  const char *get_command;
+  uint8_t get_command_length;
   unsigned int master_server_key= (unsigned int)-1; /* 0 is a valid server id! */
+  bool length_specified = (user_spec_len != GET_LEN_ARG_UNSPECIFIED);
+
 
   memcached_return_t rc;
   if (memcached_failed(rc= initialize_query(ptr)))
@@ -236,6 +253,14 @@ static memcached_return_t memcached_mget_by_key_real(memcached_st *ptr,
     is_group_key_set= true;
   }
 
+  if (length_specified) {
+    if (ptr->flags.binary_protocol)
+      return memcached_set_error(*ptr, MEMCACHED_NOT_SUPPORTED, MEMCACHED_AT);
+
+    if (!(user_spec_len > 0 && user_spec_len < GET_LEN_ARG_UNSPECIFIED))
+      return memcached_set_error(*ptr, MEMCACHED_FAILURE, MEMCACHED_AT);
+  }
+
   /*
     Here is where we pay for the non-block API. We need to remove any data sitting
     in the queue before we start our get.
@@ -265,10 +290,24 @@ static memcached_return_t memcached_mget_by_key_real(memcached_st *ptr,
                               key_length, number_of_keys, mget_mode);
   }
 
-  if (ptr->flags.support_cas)
-  {
-    get_command= "gets ";
-    get_command_length= 5;
+  if (length_specified) {
+    if (ptr->flags.support_cas)
+    {
+      get_command= "gets_len ";
+      get_command_length= 9;
+    } else {
+      get_command= "get_len ";
+      get_command_length= 8;
+    }
+  } else {
+    if (ptr->flags.support_cas)
+    {
+      get_command= "gets ";
+      get_command_length= 5;
+    } else {
+      get_command= "get ";
+      get_command_length= 4;
+    }
   }
 
   /*
@@ -318,6 +357,7 @@ static memcached_return_t memcached_mget_by_key_real(memcached_st *ptr,
         failures_occured_in_sending= true;
         continue;
       }
+
       WATCHPOINT_ASSERT(instance->cursor_active == 0);
       memcached_server_response_increment(instance);
       WATCHPOINT_ASSERT(instance->cursor_active == 1);
@@ -327,6 +367,16 @@ static memcached_return_t memcached_mget_by_key_real(memcached_st *ptr,
       if ((memcached_io_writev(instance, (vector + 1), 3, false)) == -1)
       {
         memcached_server_response_reset(instance);
+        failures_occured_in_sending= true;
+        continue;
+      }
+    }
+
+    if (length_specified) {
+      char len[GET_LEN_BUFSZ];
+      if (snprintf(len, GET_LEN_BUFSZ, "%d ", user_spec_len) < 0 ||
+          (memcached_io_write(instance, len, strlen(len), 0) == -1))
+      {
         failures_occured_in_sending= true;
         continue;
       }
@@ -390,7 +440,7 @@ memcached_return_t memcached_mget_by_key(memcached_st *ptr,
                                          size_t number_of_keys)
 {
   return memcached_mget_by_key_real(ptr, group_key, group_key_length, keys,
-                                    key_length, number_of_keys, true);
+                                    key_length, number_of_keys, true, GET_LEN_ARG_UNSPECIFIED);
 }
 
 memcached_return_t memcached_mget_execute(memcached_st *ptr,
@@ -767,3 +817,26 @@ char *memcached_get_from_last(memcached_st *ptr, const char *key,
 
   return value;
 }
+
+char *memcached_get_len(memcached_st *ptr, const char *key,
+                        size_t key_length,
+                        size_t *value_length,
+                        uint32_t *flags,
+                        uint32_t user_spec_len,
+                        memcached_return_t *error)
+{
+  return memcached_get_len_by_key(ptr, NULL, 0, key, key_length, value_length,
+                                  flags, user_spec_len, error);
+}
+
+
+memcached_return_t memcached_mget_len(memcached_st *ptr,
+                                    const char * const *keys,
+                                    const size_t *key_length,
+                                    size_t number_of_keys,
+                                    uint32_t user_spec_len)
+{
+  return memcached_mget_by_key_real(ptr, NULL, 0, keys, key_length,
+                                    number_of_keys, true, user_spec_len);
+}
+

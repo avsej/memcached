@@ -8,13 +8,13 @@ class Memcached
         check_return_code(ret, keys)
 
         hash = {}
-        keys.each do
+        loop do
           value, key, flags, ret = Lib.memcached_fetch_rvalue(@struct)
-          break if ret == Lib::MEMCACHED_END
-          if ret != Lib::MEMCACHED_NOTFOUND
-            check_return_code(ret, key)
-            # Assign the value
+          break if value.nil? || ret == Lib::MEMCACHED_END
+          if ret == Lib::MEMCACHED_SUCCESS
             hash[key] = value
+          elsif ret != Lib::MEMCACHED_NOTFOUND
+            check_return_code(ret, key)
           end
         end
         hash
