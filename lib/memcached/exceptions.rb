@@ -63,7 +63,7 @@ Subclasses correspond one-to-one with server response strings or libmemcached er
   class << self
     private
     def camelize(string)
-      string.downcase.gsub('/', ' or ').split(' ').map {|s| s.capitalize}.join
+      string.downcase.gsub('/', ' or ').gsub(/[()]/, '').split(' ').map {|s| s.capitalize}.join
     end
   end
 

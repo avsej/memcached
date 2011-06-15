@@ -28,8 +28,11 @@
 
 // %trackobjects; // Doesn't fix any interesting leaks
 
+typedef const struct memcached_server_st *memcached_server_instance_st;
+
 //// Input maps
 
+%apply unsigned short { in_port_t };
 %apply unsigned short { uint8_t };
 %apply unsigned int { uint16_t };
 %apply unsigned int { uint32_t server_failure_counter };
@@ -38,7 +41,7 @@
 %apply unsigned long long { uint64_t data, uint64_t cas };
 
 // Array of strings map for multiget
-%typemap(in) (const char **keys, size_t *key_length, size_t number_of_keys) {
+%typemap(in) (const char * const *keys, const size_t *key_length, size_t number_of_keys) {
   unsigned int i;
   Check_Type($input, T_ARRAY);
   $3 = (unsigned int) RARRAY_LEN($input);
@@ -51,7 +54,7 @@
   }
 }
 
-%typemap(freearg) (const char **keys, size_t *key_length, size_t number_of_keys) {
+%typemap(freearg) (const char * const *keys, const size_t *key_length, size_t number_of_keys) {
    free($1);
    free($2);
 }
@@ -87,7 +90,7 @@
 
 //// Output maps
 
-%apply unsigned short *OUTPUT {memcached_return *error}
+%apply unsigned short *OUTPUT {memcached_return_t *error}
 %apply unsigned int *OUTPUT {uint32_t *flags}
 %apply size_t *OUTPUT {size_t *value_length}
 %apply unsigned long long *OUTPUT {uint64_t *value}
@@ -133,12 +136,24 @@
 
 %include "libmemcached/visibility.h"
 %include "libmemcached/memcached.h"
-%include "libmemcached/memcached_constants.h"
-%include "libmemcached/memcached_get.h"
-%include "libmemcached/memcached_storage.h"
-%include "libmemcached/memcached_result.h"
-%include "libmemcached/memcached_server.h"
-%include "libmemcached/memcached_sasl.h"
+%include "libmemcached/return.h"
+%include "libmemcached/strerror.h"
+%include "libmemcached/version.h"
+%include "libmemcached/constants.h"
+%include "libmemcached/get.h"
+%include "libmemcached/storage.h"
+%include "libmemcached/result.h"
+%include "libmemcached/server.h"
+%include "libmemcached/sasl.h"
+%include "libmemcached/callback.h"
+%include "libmemcached/behavior.h"
+%include "libmemcached/array.h"
+%include "libmemcached/quit.h"
+%include "libmemcached/flush.h"
+%include "libmemcached/delete.h"
+%include "libmemcached/stats.h"
+%include "libmemcached/auto.h"
+%include "libmemcached/error.h"
 
 //// Custom C functions
 
@@ -168,41 +183,45 @@ VALUE rb_str_new_by_ref(char *ptr, long len)
 //// Manual wrappers
 
 // Single get
-VALUE memcached_get_rvalue(memcached_st *ptr, const char *key, size_t key_length, uint32_t *flags, memcached_return *error);
+VALUE memcached_get_rvalue(memcached_st *ptr, const char *key, size_t key_length, uint32_t *flags, memcached_return_t *error);
 %{
-VALUE memcached_get_rvalue(memcached_st *ptr, const char *key, size_t key_length, uint32_t *flags, memcached_return *error) {
+VALUE memcached_get_rvalue(memcached_st *ptr, const char *key, size_t key_length, uint32_t *flags, memcached_return_t *error) {
   size_t value_length = 0;
   char *value = memcached_get(ptr, key, key_length, &value_length, flags, error);
   return rb_str_new_by_ref(value, value_length);
 };
 %}
 
-VALUE memcached_get_len_rvalue(memcached_st *ptr, const char *key, size_t key_length, uint32_t user_spec_len, uint32_t *flags, memcached_return *error);
-%{
-VALUE memcached_get_len_rvalue(memcached_st *ptr, const char *key, size_t key_length, uint32_t user_spec_len, uint32_t *flags, memcached_return *error) {
-  size_t value_length = 0;
-  char *value = memcached_get_len(ptr, key, key_length, user_spec_len, &value_length, flags, error);
-  return rb_str_new_by_ref(value, value_length);
-};
-%}
+//VALUE memcached_get_len_rvalue(memcached_st *ptr, const char *key, size_t key_length, uint32_t user_spec_len, uint32_t *flags, memcached_return_t *error);
+//%{
+//VALUE memcached_get_len_rvalue(memcached_st *ptr, const char *key, size_t key_length, uint32_t user_spec_len, uint32_t *flags, memcached_return_t *error) {
+//  size_t value_length = 0;
+//  char *value = memcached_get_len(ptr, key, key_length, user_spec_len, &value_length, flags, error);
+//  return rb_str_new_by_ref(value, value_length);
+//};
+//%}
 
-VALUE memcached_get_from_last_rvalue(memcached_st *ptr, const char *key, size_t key_length, uint32_t *flags, memcached_return *error);
-%{
-VALUE memcached_get_from_last_rvalue(memcached_st *ptr, const char *key, size_t key_length, uint32_t *flags, memcached_return *error) {
-  size_t value_length = 0;
-  char *value = memcached_get_from_last(ptr, key, key_length, &value_length, flags, error);
-  return rb_str_new_by_ref(value, value_length);
-};
-%}
+//VALUE memcached_get_from_last_rvalue(memcached_st *ptr, const char *key, size_t key_length, uint32_t *flags, memcached_return_t *error);
+//%{
+//VALUE memcached_get_from_last_rvalue(memcached_st *ptr, const char *key, size_t key_length, uint32_t *flags, memcached_return_t *error) {
+//  size_t value_length = 0;
+//  char *value = memcached_get_from_last(ptr, key, key_length, &value_length, flags, error);
+//  return rb_str_new_by_ref(value, value_length);
+//};
+//%}
 
 // Multi get
-VALUE memcached_fetch_rvalue(memcached_st *ptr, char *key, size_t *key_length, uint32_t *flags, memcached_return *error);
+VALUE memcached_fetch_rvalue(memcached_st *ptr, char *key, size_t *key_length, uint32_t *flags, memcached_return_t *error);
 %{
-VALUE memcached_fetch_rvalue(memcached_st *ptr, char *key, size_t *key_length, uint32_t *flags, memcached_return *error) {
+VALUE memcached_fetch_rvalue(memcached_st *ptr, char *key, size_t *key_length, uint32_t *flags, memcached_return_t *error) {
   size_t value_length = 0;
   VALUE ary = rb_ary_new();
   char *value = memcached_fetch(ptr, key, key_length, &value_length, flags, error);
-  VALUE str = rb_str_new_by_ref(value, value_length);
+  VALUE str;
+  if (value || (!value && *error == MEMCACHED_SUCCESS))
+    str = rb_str_new_by_ref(value, value_length);
+  else
+    str = Qnil;
   rb_ary_push(ary, str);
   return ary;
 };
@@ -212,7 +231,7 @@ VALUE memcached_fetch_rvalue(memcached_st *ptr, char *key, size_t *key_length, u
 memcached_server_st *memcached_select_server_at(memcached_st *in_ptr, int index);
 %{
 memcached_server_st *memcached_select_server_at(memcached_st *in_ptr, int index) {
-  return &(in_ptr->hosts[index]);
+  return &(in_ptr->servers[index]);
 };
 %}
 
@@ -226,12 +245,13 @@ memcached_stat_st *memcached_select_stat_at(memcached_st *in_ptr, memcached_stat
 
 // Wrap only hash function
 // Uint32
-VALUE memcached_generate_hash_rvalue(const char *key, size_t key_length, memcached_hash hash_algorithm);
+VALUE memcached_generate_hash_rvalue(const char *key, size_t key_length, memcached_hash_t hash_algorithm);
 %{
-VALUE memcached_generate_hash_rvalue(const char *key, size_t key_length,memcached_hash hash_algorithm) {
+VALUE memcached_generate_hash_rvalue(const char *key, size_t key_length, memcached_hash_t hash_algorithm) {
   return UINT2NUM(memcached_generate_hash_value(key, key_length, hash_algorithm));
 };
 %}
+
 
 // Initialization for SASL
 %init %{

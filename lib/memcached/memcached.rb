@@ -214,8 +214,8 @@ Please note that when <tt>:no_block => true</tt>, update methods do not raise on
 
   # Return the current prefix key.
   def prefix_key
-    if @struct.prefix_key.size > 0
-      @struct.prefix_key[0..-1 - options[:prefix_delimiter].size]
+    if Lib.memcached_array_size(@struct.prefix_key) > 0
+      Lib.memcached_array_string(@struct.prefix_key)[0..-1 - options[:prefix_delimiter].size]
     else
       ""
     end
@@ -257,9 +257,8 @@ Please note that when <tt>:no_block => true</tt>, update methods do not raise on
   end
 
   # Should retry the exception
-  def should_retry(e)
-    options[:exceptions_to_retry].each {|ex_class| return true if e.instance_of?(ex_class)}
-    false
+  def should_retry(tries, e)
+    tries < options[:exception_retry_limit] && options[:exceptions_to_retry].include?(e.class)
   end
 
   #:stopdoc:
@@ -270,11 +269,11 @@ Please note that when <tt>:no_block => true</tt>, update methods do not raise on
 
   private
 
-  # Return an array of raw <tt>memcached_host_st</tt> structs for this instance.
+  # Return an array of raw <tt>memcached_server_st</tt> structs for this instance.
   def server_structs
     array = []
-    if @struct.hosts
-      @struct.hosts.count.times do |i|
+    if @struct.servers
+      @struct.number_of_hosts.times do |i|
         array << Lib.memcached_select_server_at(@struct, i)
       end
     end
@@ -303,7 +302,7 @@ Please note that when <tt>:no_block => true</tt>, update methods do not raise on
     rescue => e
       tries ||= 0
       retry if e.instance_of?(ClientError) && !tries
-      raise unless tries < options[:exception_retry_limit] && should_retry(e)
+      raise unless should_retry(tries, e)
       tries += 1
       retry
     end
@@ -319,7 +318,7 @@ Please note that when <tt>:no_block => true</tt>, update methods do not raise on
       )
     rescue => e
       tries ||= 0
-      raise unless tries < options[:exception_retry_limit] && should_retry(e)
+      raise unless should_retry(tries, e)
       tries += 1
       retry
     end
@@ -336,7 +335,7 @@ Please note that when <tt>:no_block => true</tt>, update methods do not raise on
     value
   rescue => e
     tries ||= 0
-    raise unless tries < options[:exception_retry_limit] && should_retry(e)
+    raise unless should_retry(tries, e)
     tries += 1
     retry
   end
@@ -348,7 +347,7 @@ Please note that when <tt>:no_block => true</tt>, update methods do not raise on
     value
   rescue => e
     tries ||= 0
-    raise unless tries < options[:exception_retry_limit] && should_retry(e)
+    raise unless should_retry(tries, e)
     tries += 1
     retry
   end
@@ -368,7 +367,7 @@ Please note that when <tt>:no_block => true</tt>, update methods do not raise on
       )
     rescue => e
       tries ||= 0
-      raise unless tries < options[:exception_retry_limit] && should_retry(e)
+      raise unless should_retry(tries, e)
       tries += 1
       retry
     end
@@ -385,7 +384,7 @@ Please note that when <tt>:no_block => true</tt>, update methods do not raise on
     )
   rescue => e
     tries ||= 0
-    raise unless tries < options[:exception_retry_limit] && should_retry(e)
+    raise unless should_retry(tries, e)
     tries += 1
     retry
   end
@@ -399,7 +398,7 @@ Please note that when <tt>:no_block => true</tt>, update methods do not raise on
     )
   rescue => e
     tries ||= 0
-    raise unless tries < options[:exception_retry_limit] && should_retry(e)
+    raise unless should_retry(tries, e)
     tries += 1
     retry
   end
@@ -418,12 +417,12 @@ Please note that when <tt>:no_block => true</tt>, update methods do not raise on
       check_return_code(ret, key)
     rescue => e
       tries_for_get ||= 0
-      raise unless tries_for_get < options[:exception_retry_limit] && should_retry(e)
+      raise unless should_retry(tries_for_get, e)
       tries_for_get += 1
       retry
     end
 
-    cas = @struct.result.cas
+    cas = @struct.result.item_cas
 
     value = Marshal.load(value) if marshal
     value = yield value
@@ -436,7 +435,7 @@ Please note that when <tt>:no_block => true</tt>, update methods do not raise on
       )
     rescue => e
       tries_for_cas ||= 0
-      raise unless tries_for_cas < options[:exception_retry_limit] && should_retry(e)
+      raise unless should_retry(tries_for_cas, e)
       tries_for_cas += 1
       retry
     end
@@ -454,7 +453,7 @@ Please note that when <tt>:no_block => true</tt>, update methods do not raise on
     )
   rescue => e
     tries ||= 0
-    raise unless tries < options[:exception_retry_limit] && should_retry(e)
+    raise unless should_retry(tries, e)
     tries += 1
     retry
   end
@@ -466,7 +465,7 @@ Please note that when <tt>:no_block => true</tt>, update methods do not raise on
     )
   rescue => e
     tries ||= 0
-    raise unless tries < options[:exception_retry_limit] && should_retry(e)
+    raise unless should_retry(tries, e)
     tries += 1
     retry
   end
@@ -490,15 +489,17 @@ Please note that when <tt>:no_block => true</tt>, update methods do not raise on
       check_return_code(ret, keys)
 
       hash = {}
-      value, key, flags, ret = Lib.memcached_fetch_rvalue(@struct)
-      while ret != 21 do # Lib::MEMCACHED_END
-        if ret == 0 # Lib::MEMCACHED_SUCCESS
+
+      loop do
+        value, key, flags, ret = Lib.memcached_fetch_rvalue(@struct)
+        break if value.nil? || ret == Lib::MEMCACHED_END
+        if ret == Lib::MEMCACHED_SUCCESS
           hash[key] = (marshal ? Marshal.load(value) : value)
-        elsif ret != 16 # Lib::MEMCACHED_NOTFOUND
+        elsif ret != Lib::MEMCACHED_NOTFOUND
           check_return_code(ret, key)
         end
-        value, key, flags, ret = Lib.memcached_fetch_rvalue(@struct)
       end
+
       hash
     else
       # Single get
@@ -508,7 +509,7 @@ Please note that when <tt>:no_block => true</tt>, update methods do not raise on
     end
   rescue => e
     tries ||= 0
-    raise unless tries < options[:exception_retry_limit] && should_retry(e)
+    raise unless should_retry(tries, e)
     tries += 1
     retry
   end
@@ -577,12 +578,13 @@ Please note that when <tt>:no_block => true</tt>, update methods do not raise on
 
   # Checks the return code from Rlibmemcached against the exception list. Raises the corresponding exception if the return code is not Memcached::Success or Memcached::ActionQueued. Accepts an integer return code and an optional key, for exception messages.
   def check_return_code(ret, key = nil) #:doc:
-    if ret == 0 # Lib::MEMCACHED_SUCCESS
-    elsif ret == 32 # Lib::MEMCACHED_BUFFERED
-    elsif ret == 16
-      raise @not_found # Lib::MEMCACHED_NOTFOUND
-    elsif ret == 14
-      raise @not_stored # Lib::MEMCACHED_NOTSTORED
+    case ret
+    when Lib::MEMCACHED_SUCCESS
+    when Lib::MEMCACHED_BUFFERED
+    when Lib::MEMCACHED_NOTFOUND
+      raise @not_found
+    when Lib::MEMCACHED_NOTSTORED
+      raise @not_stored
     else
       reraise(key, ret)
     end

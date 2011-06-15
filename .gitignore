@@ -6,7 +6,6 @@
 .deps
 .dirstamp
 .libs
-ext/**/Makefile
 ext/Makefile
 ext/bin
 ext/include
@@ -27,6 +26,7 @@ ext/libmemcached-*/clients/memstat
 ext/libmemcached-*/config.h
 ext/libmemcached-*/config.log
 ext/libmemcached-*/config.status
+ext/libmemcached-*/config/pandora_vc_revinfo
 ext/libmemcached-*/config/top.h
 ext/libmemcached-*/docs/conf.py
 ext/libmemcached-*/example/memcached_light
@@ -35,7 +35,6 @@ ext/libmemcached-*/libmemcached/configure.h
 ext/libmemcached-*/libmemcached/memcached_configure.h
 ext/libmemcached-*/libtool
 ext/libmemcached-*/stamp*
-ext/libmemcached-*/stamp-h1
 ext/libmemcached-*/support/libmemcached-fc.spec
 ext/libmemcached-*/support/libmemcached.pc
 ext/libmemcached-*/support/libmemcached.spec

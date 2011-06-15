@@ -2,7 +2,7 @@ require 'mkmf'
 require 'rbconfig'
 
 HERE = File.expand_path(File.dirname(__FILE__))
-BUNDLE_PATH = Dir.glob("libmemcached-*").first
+BUNDLE_PATH = Dir.glob("libmemcached-*").last
 
 SOLARIS_32 = RbConfig::CONFIG['target'] == "i386-pc-solaris2.10"
 BSD = Config::CONFIG['host_os'].downcase =~ /bsd/
@@ -11,6 +11,7 @@ $CFLAGS = "#{RbConfig::CONFIG['CFLAGS']} #{$CFLAGS}".gsub("$(cflags)", "").gsub(
 $CFLAGS << " -std=gnu99" if SOLARIS_32
 $CFLAGS << " -I/usr/local/include" if BSD
 $EXTRA_CONF = " --disable-64bit" if SOLARIS_32
+
 $LDFLAGS = "#{RbConfig::CONFIG['LDFLAGS']} #{$LDFLAGS} -L#{RbConfig::CONFIG['libdir']}".gsub("$(ldflags)", "").gsub("-fno-common", "")
 $CXXFLAGS = " -std=gnu++98"
 $CPPFLAGS = $ARCH_FLAG = $DLDFLAGS = ""
@@ -47,7 +48,7 @@ def check_libmemcached
   $DEFLIBPATH = [] unless SOLARIS_32
 
   Dir.chdir(HERE) do
-    run("touch -r #{BUNDLE_PATH}/m4/visibility.m4 #{BUNDLE_PATH}/configure.ac #{BUNDLE_PATH}/m4/pandora_have_sasl.m4", "Touching aclocal.m4 in libmemcached.")
+    run("touch -r #{BUNDLE_PATH}/configure.ac #{BUNDLE_PATH}/m4/pandora_have_sasl.m4", "Touching aclocal.m4 in libmemcached.")
 
     Dir.chdir(BUNDLE_PATH) do
       run("env CFLAGS='-fPIC #{LIBM_CFLAGS}' LDFLAGS='-fPIC #{LIBM_LDFLAGS}' ./configure --prefix=#{HERE} --without-memcached --disable-shared --disable-dependency-tracking #{$EXTRA_CONF} 2>&1", "Configuring libmemcached.")
@@ -71,11 +72,20 @@ check_libmemcached
 
 if ENV['SWIG']
   puts "WARNING: Swig 2.0.2 not found. Other versions may not work." if (`swig -version`!~ /2.0.2/)
-  run("swig #{$defines} #{$includes} -ruby -autorename rlibmemcached.i", "Running SWIG.")
-  run("sed -i '' 's/STR2CSTR/StringValuePtr/' rlibmemcached_wrap.c", "Patching SWIG output for Ruby 1.9.")
-  run("sed -i '' 's/\"swig_runtime_data\"/\"SwigRuntimeData\"/' rlibmemcached_wrap.c", "Patching SWIG output for Ruby 1.9.")
-  run("sed -i '' 's/#ifndef RUBY_INIT_STACK/#ifdef __NEVER__/g' rlibmemcached_wrap.c", "Patching SWIG output for JRuby.")
+  run("swig #{$defines} #{$includes} -ruby -autorename -o rlibmemcached_wrap.c.in rlibmemcached.i", "Running SWIG.")
+
+  swig_patches = {
+    "STR2CSTR" => "StringValuePtr",                                # Patching SWIG output for Ruby 1.9.
+    "\"swig_runtime_data\"" =>  "\"SwigRuntimeData\"",             # Patching SWIG output for Ruby 1.9.
+    "#ifndef RUBY_INIT_STACK" => "#ifdef __NEVER__",               # Patching SWIG output for JRuby.
+    "while (size && (result\\[size - 1\\] == '\\''\\\\0'\\'')) --size" => "size = strnlen(result, size)" # Fix string conversion.
+  }.map{|pair| "s/#{pair.join('/')}/"}.join(';')
+
+  # sed has different syntax for inplace switch in BSD and GNU version,
+  # so using intermediate file
+  run("sed '#{swig_patches}' rlibmemcached_wrap.c.in > rlibmemcached_wrap.c", "Apply patches to SWIG output")
 end
 
 $CFLAGS << " -Os"
+CONFIG['LDSHARED'] = "g++ -shared"
 create_makefile 'rlibmemcached'
