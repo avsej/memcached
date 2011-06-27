@@ -154,6 +154,7 @@ typedef const struct memcached_server_st *memcached_server_instance_st;
 %include "libmemcached/stats.h"
 %include "libmemcached/auto.h"
 %include "libmemcached/error.h"
+%include "libmemcached/touch.h"
 
 //// Custom C functions
 
