@@ -546,36 +546,32 @@ memcached_return_t memcached_connect(memcached_server_write_instance_st ptr)
 
   /* both retry_timeout and server_failure_limit must be set in order to delay retrying a server on error. */
   WATCHPOINT_ASSERT(ptr->root);
-  if (ptr->root->retry_timeout && ptr->next_retry)
-  {
-    struct timeval curr_time;
-
-    gettimeofday(&curr_time, NULL);
-
-    // We should optimize this to remove the allocation if the server was
-    // the last server to die
-    if (ptr->next_retry > curr_time.tv_sec)
-    {
-      set_last_disconnected_host(ptr);
-
-      return memcached_set_error(*ptr, MEMCACHED_SERVER_MARKED_DEAD, MEMCACHED_AT);
-    }
-  }
-
   // If we are over the counter failure, we just fail. Reject host only
   // works if you have a set number of failures.
   if (ptr->root->server_failure_limit && ptr->server_failure_counter >= ptr->root->server_failure_limit)
   {
-    set_last_disconnected_host(ptr);
-
     // @todo fix this by fixing behavior to no longer make use of
     // memcached_st
     if (_is_auto_eject_host(ptr->root))
     {
+      ptr->server_failure_counter= 0;
       run_distribution((memcached_st *)ptr->root);
     }
 
-    return memcached_set_error(*ptr, MEMCACHED_SERVER_MARKED_DEAD, MEMCACHED_AT);
+    if (ptr->root->retry_timeout && ptr->next_retry)
+    {
+      struct timeval curr_time;
+
+      gettimeofday(&curr_time, NULL);
+
+      // We should optimize this to remove the allocation if the server was
+      // the last server to die
+      if (ptr->next_retry > curr_time.tv_sec)
+      {
+        set_last_disconnected_host(ptr);
+        return memcached_set_error(*ptr, MEMCACHED_SERVER_MARKED_DEAD, MEMCACHED_AT);
+      }
+    }
   }
 
   /* We need to clean up the multi startup piece */
