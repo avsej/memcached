@@ -1,7 +1,8 @@
+require 'psych'
 gem 'echoe', '>= 4.5.6'
 require 'echoe'
 
-Echoe.new("memcached") do |p|
+Echoe.new("couchbase-memcached") do |p|
   p.author = "Evan Weaver"
   p.project = "fauna"
   p.summary = "An interface to the libmemcached C client."
