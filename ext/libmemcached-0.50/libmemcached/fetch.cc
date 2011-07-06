@@ -1,5 +1,5 @@
 /*  vim:expandtab:shiftwidth=2:tabstop=2:smarttab:
- * 
+ *
  *  Libmemcached library
  *
  *  Copyright (C) 2011 Data Differential, http://datadifferential.com/
@@ -37,8 +37,8 @@
 
 #include <libmemcached/common.h>
 
-char *memcached_fetch(memcached_st *ptr, char *key, size_t *key_length, 
-                      size_t *value_length, 
+char *memcached_fetch(memcached_st *ptr, char *key, size_t *key_length,
+                      size_t *value_length,
                       uint32_t *flags,
                       memcached_return_t *error)
 {
@@ -179,7 +179,10 @@ memcached_result_st *memcached_fetch_result(memcached_st *ptr,
     }
   }
 
-  if (*error == MEMCACHED_NOTFOUND and result->count)
+  if (*error == MEMCACHED_PROTOCOL_ERROR) {
+    // allow consequent code decide how to handle protocol errors
+  }
+  else if (*error == MEMCACHED_NOTFOUND and result->count)
   {
     *error= MEMCACHED_END;
   }
@@ -214,7 +217,7 @@ memcached_result_st *memcached_fetch_result(memcached_st *ptr,
   return NULL;
 }
 
-memcached_return_t memcached_fetch_execute(memcached_st *ptr, 
+memcached_return_t memcached_fetch_execute(memcached_st *ptr,
                                            memcached_execute_fn *callback,
                                            void *context,
                                            uint32_t number_of_callbacks)
