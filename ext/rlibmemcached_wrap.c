@@ -15206,13 +15206,13 @@ _wrap_memcached_touch(int argc, VALUE *argv, VALUE self) {
   int ecode4 = 0 ;
   memcached_return_t result;
   VALUE vresult = Qnil;
-
+  
   if ((argc < 3) || (argc > 3)) {
     rb_raise(rb_eArgError, "wrong # of arguments(%d for 3)",argc); SWIG_fail;
   }
   res1 = SWIG_ConvertPtr(argv[0], &argp1,SWIGTYPE_p_memcached_st, 0 |  0 );
   if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), Ruby_Format_TypeError( "", "memcached_st *","memcached_touch", 1, argv[0] ));
+    SWIG_exception_fail(SWIG_ArgError(res1), Ruby_Format_TypeError( "", "memcached_st *","memcached_touch", 1, argv[0] )); 
   }
   arg1 = (memcached_st *)(argp1);
   {
@@ -15222,7 +15222,7 @@ _wrap_memcached_touch(int argc, VALUE *argv, VALUE self) {
   ecode4 = SWIG_AsVal_unsigned_SS_long(argv[2], &val4);
   if (!SWIG_IsOK(ecode4)) {
     SWIG_exception_fail(SWIG_ArgError(ecode4), Ruby_Format_TypeError( "", "time_t","memcached_touch", 4, argv[2] ));
-  }
+  } 
   arg4 = (time_t)(val4);
   result = (memcached_return_t)memcached_touch(arg1,(char const *)arg2,arg3,arg4);
   vresult = SWIG_From_int((int)(result));
@@ -15251,13 +15251,13 @@ _wrap_memcached_touch_by_key(int argc, VALUE *argv, VALUE self) {
   int ecode6 = 0 ;
   memcached_return_t result;
   VALUE vresult = Qnil;
-
+  
   if ((argc < 5) || (argc > 5)) {
     rb_raise(rb_eArgError, "wrong # of arguments(%d for 5)",argc); SWIG_fail;
   }
   res1 = SWIG_ConvertPtr(argv[0], &argp1,SWIGTYPE_p_memcached_st, 0 |  0 );
   if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), Ruby_Format_TypeError( "", "memcached_st *","memcached_touch_by_key", 1, argv[0] ));
+    SWIG_exception_fail(SWIG_ArgError(res1), Ruby_Format_TypeError( "", "memcached_st *","memcached_touch_by_key", 1, argv[0] )); 
   }
   arg1 = (memcached_st *)(argp1);
   res2 = SWIG_AsCharPtrAndSize(argv[1], &buf2, NULL, &alloc2);
@@ -15268,7 +15268,7 @@ _wrap_memcached_touch_by_key(int argc, VALUE *argv, VALUE self) {
   ecode3 = SWIG_AsVal_size_t(argv[2], &val3);
   if (!SWIG_IsOK(ecode3)) {
     SWIG_exception_fail(SWIG_ArgError(ecode3), Ruby_Format_TypeError( "", "size_t","memcached_touch_by_key", 3, argv[2] ));
-  }
+  } 
   arg3 = (size_t)(val3);
   {
     arg4 = StringValuePtr(argv[3]);
@@ -15277,7 +15277,7 @@ _wrap_memcached_touch_by_key(int argc, VALUE *argv, VALUE self) {
   ecode6 = SWIG_AsVal_unsigned_SS_long(argv[4], &val6);
   if (!SWIG_IsOK(ecode6)) {
     SWIG_exception_fail(SWIG_ArgError(ecode6), Ruby_Format_TypeError( "", "time_t","memcached_touch_by_key", 6, argv[4] ));
-  }
+  } 
   arg6 = (time_t)(val6);
   result = (memcached_return_t)memcached_touch_by_key(arg1,(char const *)arg2,arg3,(char const *)arg4,arg5,arg6);
   vresult = SWIG_From_int((int)(result));

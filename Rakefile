@@ -1,5 +1,4 @@
-require 'psych'
-gem 'echoe', '>= 4.5.6'
+gem 'echoe', '~> 4.5.6'
 require 'echoe'
 
 Echoe.new("couchbase-memcached") do |p|
@@ -54,11 +53,11 @@ task :exceptions do
 end
 
 task :test_all do
-  if !system("rvm use ree-1.8.7-2010.02 && rake clean && rake")
+  if !system("rvm ree rake clean test")
     puts "REE test failed"
     exit(1)
   end
-  if !system("rvm use ruby-1.9.2 && rake clean && rake")
+  if !system("rvm 1.9.2 rake clean test")
     puts "1.9 test failed"
     exit(1)
   end

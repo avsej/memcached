@@ -13,7 +13,7 @@ $CFLAGS << " -I/usr/local/include" if BSD
 $EXTRA_CONF = " --disable-64bit" if SOLARIS_32
 
 $LDFLAGS = "#{RbConfig::CONFIG['LDFLAGS']} #{$LDFLAGS} -L#{RbConfig::CONFIG['libdir']}".gsub("$(ldflags)", "").gsub("-fno-common", "")
-$CXXFLAGS = " -std=gnu++98"
+$CXXFLAGS = "-fPIC -std=gnu++98"
 $CPPFLAGS = $ARCH_FLAG = $DLDFLAGS = ""
 
 # JRuby's default configure options can't build libmemcached properly
@@ -51,7 +51,7 @@ def check_libmemcached
     run("touch -r #{BUNDLE_PATH}/configure.ac #{BUNDLE_PATH}/m4/pandora_have_sasl.m4", "Touching aclocal.m4 in libmemcached.")
 
     Dir.chdir(BUNDLE_PATH) do
-      run("env CFLAGS='-fPIC #{LIBM_CFLAGS}' LDFLAGS='-fPIC #{LIBM_LDFLAGS}' ./configure --prefix=#{HERE} --without-memcached --disable-shared --disable-dependency-tracking #{$EXTRA_CONF} 2>&1", "Configuring libmemcached.")
+      run("env CFLAGS='-fPIC #{LIBM_CFLAGS}' CXXFLAGS='#{$CXXFLAGS} #{LIBM_CFLAGS}' LDFLAGS='-fPIC #{LIBM_LDFLAGS}' ./configure --prefix=#{HERE} --without-memcached --disable-shared --disable-dependency-tracking #{$EXTRA_CONF} 2>&1", "Configuring libmemcached.")
     end
 
     Dir.chdir(BUNDLE_PATH) do
