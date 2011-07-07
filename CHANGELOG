@@ -1,3 +1,5 @@
+v1.2.9. Fix test_all task to properly run tests on both platforms. Fix build for ruby 1.8 (enterprise edition)
+
 v1.2.8. Upgrade to libmemcached 0.50. Implement TOUCH command.
 
 v1.2.7. Fix prefix keys on binary (multi)gets. Remove extraneous space from CAS requests.
